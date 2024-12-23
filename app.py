@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
+from fastapi.responses import Response  # Добавим правильный импорт для Response
 import httpx
 import re
 from libgen_api import LibgenSearch
@@ -85,30 +86,6 @@ def get_column_names():
     ]
     return col_names
 
-@app.get("/download")
-async def download_file(file_url: str):
-    """Proxy file download through your server."""
-    # Validate the URL (simple regex check for expected format)
-    if not re.match(r'https://download.library.gift/main/\d+/[a-f0-9]+/.+', file_url):
-        raise HTTPException(status_code=400, detail="Invalid download link format.")
-
-    try:
-        async with httpx.AsyncClient() as client:
-            # Send GET request to the file's URL
-            response = await client.get(file_url)
-            response.raise_for_status()  # Raise exception for bad responses (e.g., 404, 500)
-
-            # Return the file as a response with correct headers
-            headers = {'Content-Disposition': f'attachment; filename="{file_url.split("/")[-1]}"'}
-            return Response(content=response.content, media_type="application/pdf", headers=headers)
-
-    except httpx.RequestError as exc:
-        raise HTTPException(status_code=500, detail=f"Error downloading file: {exc}")
-
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=exc.response.status_code, detail=f"Error downloading file: {exc.response.text}")
-
-
 @app.get("/", response_model=Dict)
 def root():
     return {
@@ -123,3 +100,31 @@ def root():
         ]
     }
 
+@app.get("/download")
+async def download_file(file_url: str):
+    """Proxy file download through your server."""
+    
+    # Пытаться не проверять формат ссылки, если хотите загружать любые файлы
+    # Можно добавить дополнительную проверку на допустимость URL или не делать её вообще
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Отправка GET-запроса по ссылке
+            response = await client.get(file_url)
+            response.raise_for_status()  # Выбросить исключение, если получен некорректный ответ (например, 404 или 500)
+
+            # Определение типа файла из заголовков ответа
+            content_type = response.headers.get("Content-Type", "application/octet-stream")
+            
+            # Получаем имя файла из URL или из заголовка Content-Disposition
+            filename = file_url.split("/")[-1]
+
+            # Отправляем файл как ответ с нужными заголовками
+            headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+            return Response(content=response.content, media_type=content_type, headers=headers)
+
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=500, detail=f"Error downloading file: {exc}")
+
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=f"Error downloading file: {exc.response.text}")
