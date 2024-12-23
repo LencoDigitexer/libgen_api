@@ -85,20 +85,6 @@ def get_column_names():
     ]
     return col_names
 
-@app.get("/", response_model=Dict)
-def root():
-    return {
-        "message": "Welcome to the Libgen API! Use /docs for the interactive API documentation.",
-        "endpoints": [
-            "/search/title",
-            "/search/author",
-            "/search/title/filtered",
-            "/search/author/filtered",
-            "/resolve",
-            "/columns"
-        ]
-    }
-
 @app.get("/download")
 async def download_file(file_url: str):
     """Proxy file download through your server."""
@@ -121,3 +107,19 @@ async def download_file(file_url: str):
 
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=f"Error downloading file: {exc.response.text}")
+
+
+@app.get("/", response_model=Dict)
+def root():
+    return {
+        "message": "Welcome to the Libgen API! Use /docs for the interactive API documentation.",
+        "endpoints": [
+            "/search/title",
+            "/search/author",
+            "/search/title/filtered",
+            "/search/author/filtered",
+            "/resolve",
+            "/columns"
+        ]
+    }
+
