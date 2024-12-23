@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from fastapi.responses import Response  # Добавим правильный импорт для Response
 import httpx
 import re
-from libgen_api import LibgenSearch
+from libgen_api_local import LibgenSearch
 
 app = FastAPI()
 
