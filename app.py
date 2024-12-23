@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
+import httpx
+import re
 from libgen_api import LibgenSearch
 
 app = FastAPI()
@@ -96,3 +98,26 @@ def root():
             "/columns"
         ]
     }
+
+@app.get("/download")
+async def download_file(file_url: str):
+    """Proxy file download through your server."""
+    # Validate the URL (simple regex check for expected format)
+    if not re.match(r'https://download.library.gift/main/\d+/[a-f0-9]+/.+', file_url):
+        raise HTTPException(status_code=400, detail="Invalid download link format.")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Send GET request to the file's URL
+            response = await client.get(file_url)
+            response.raise_for_status()  # Raise exception for bad responses (e.g., 404, 500)
+
+            # Return the file as a response with correct headers
+            headers = {'Content-Disposition': f'attachment; filename="{file_url.split("/")[-1]}"'}
+            return Response(content=response.content, media_type="application/pdf", headers=headers)
+
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=500, detail=f"Error downloading file: {exc}")
+
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=f"Error downloading file: {exc.response.text}")
